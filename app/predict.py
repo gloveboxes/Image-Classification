@@ -20,9 +20,9 @@ class Predict():
         self.labels = []
         self.graph = None
 
-        self.initialize()
+        self._initialize()
 
-    def initialize(self):
+    def _initialize(self):
         print('Loading model...', end=''),
         with tf.io.gfile.GFile(self.filename, 'rb') as f:
             self.graph_def.ParseFromString(f.read())
@@ -42,55 +42,50 @@ class Predict():
         with open(self.labels_filename, 'rt') as lf:
             self.labels = [l.strip() for l in lf.readlines()]
 
-    def log_msg(self, msg):
+    def _log_msg(self, msg):
         print("{}: {}".format(time.time(), msg))
 
-    def resize_to_256_square(self, image):
+    def _resize_to_256_square(self, image):
         w, h = image.size
         new_w = int(256 / h * w)
         image.thumbnail((new_w, 256), Image.ANTIALIAS)
         return image
 
-    def crop_center(self, image):
+    def _crop_center(self, image):
         w, h = image.size
         xpos = (w - self.network_input_size) / 2
         ypos = (h - self.network_input_size) / 2
         box = (xpos, ypos, xpos + self.network_input_size,
-                ypos + self.network_input_size)
+               ypos + self.network_input_size)
         return image.crop(box)
 
-    def resize_down_to_1600_max_dim(self, image):
+    def _resize_down_to_1600_max_dim(self, image):
         w, h = image.size
         if h < 1600 and w < 1600:
             return image
 
         new_size = (1600 * w // h, 1600) if (h > w) else (1600, 1600 * h // w)
-        self.log_msg("resize: " + str(w) + "x" + str(h) + " to " +
-                     str(new_size[0]) + "x" + str(new_size[1]))
+        self._log_msg("resize: " + str(w) + "x" + str(h) + " to " +
+                      str(new_size[0]) + "x" + str(new_size[1]))
         if max(new_size) / max(image.size) >= 0.5:
             method = Image.BILINEAR
         else:
             method = Image.BICUBIC
         return image.resize(new_size, method)
 
-    def predict_url(self, imageUrl):
-        self.log_msg("Predicting from url: " + imageUrl)
-        with urlopen(imageUrl) as testImage:
-            image = Image.open(testImage)
-            return self.predict_image(image)
-
-    def convert_to_nparray(self, image):
+    def _convert_to_nparray(self, image):
         # RGB -> BGR
         image = np.array(image)
         return image[:, :, (2, 1, 0)]
 
-    def update_orientation(self, image):
+    def _update_orientation(self, image):
         exif_orientation_tag = 0x0112
         if hasattr(image, '_getexif'):
             exif = image._getexif()
             if exif != None and exif_orientation_tag in exif:
                 orientation = exif.get(exif_orientation_tag, 1)
-                self.log_msg('Image has EXIF Orientation: ' + str(orientation))
+                self._log_msg('Image has EXIF Orientation: ' +
+                              str(orientation))
                 # orientation is 1 based, shift to zero based and flip/transpose based on 0-based values
                 orientation -= 1
                 if orientation >= 4:
@@ -101,23 +96,28 @@ class Predict():
                     image = image.transpose(Image.FLIP_LEFT_RIGHT)
         return image
 
+    def predict_url(self, imageUrl):
+        self._log_msg("Predicting from url: " + imageUrl)
+        with urlopen(imageUrl) as testImage:
+            image = Image.open(testImage)
+            return self.predict_image(image)
+
     def predict_image(self, image):
         try:
             if image.mode != "RGB":
-                self.log_msg("Converting to RGB")
+                self._log_msg("Converting to RGB")
                 image = image.convert("RGB")
 
             # Update orientation based on EXIF tags
-            image = self.update_orientation(image)
+            image = self._update_orientation(image)
 
-            image = self.resize_down_to_1600_max_dim(image)
+            image = self._resize_down_to_1600_max_dim(image)
 
-            image = self.resize_to_256_square(image)
+            image = self._resize_to_256_square(image)
 
-            image = self.crop_center(image)
+            image = self._crop_center(image)
 
-
-            cropped_image = self.convert_to_nparray(image)
+            cropped_image = self._convert_to_nparray(image)
 
             with self.graph.as_default():
                 with tf.Session() as sess:
@@ -147,5 +147,5 @@ class Predict():
                 return response
 
         except Exception as e:
-            self.log_msg(str(e))
+            self._log_msg(str(e))
             return 'Error: Could not preprocess image for prediction. ' + str(e)

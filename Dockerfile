@@ -1,7 +1,7 @@
 ﻿FROM balenalib/raspberrypi3:stretch
 
 # Enable cross building of ARM on x64 hardware, Remove this and the cross-build-end if building on ARM hardware.
-# RUN [ "cross-build-start" ]
+RUN [ "cross-build-start" ]
 
 # Install dependencies
 RUN apt-get update &&  apt-get install -y --no-install-recommends \
@@ -37,7 +37,7 @@ WORKDIR /app
 RUN export PYTHONUNBUFFERED=TRUE
 
 # End cross building of ARM on x64 hardware, Remove this and the cross-build-start if building on ARM hardware.
-# RUN [ "cross-build-end" ]
+RUN [ "cross-build-end" ]
 
 # Run the flask server for the endpoints
 CMD ["python3","app.py"]
