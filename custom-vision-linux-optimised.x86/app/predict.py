@@ -16,7 +16,7 @@ class Predict():
         self.network_input_size = 0
         self.output_layer = 'loss:0'
         self.input_node = 'Placeholder:0'
-        self.graph_def = tf.GraphDef()
+        self.graph_def = tf.compat.v1.GraphDef()
         self.labels = []
         self.graph = None
 
@@ -24,11 +24,11 @@ class Predict():
 
     def _initialize(self):
         print('Loading model...', end=''),
-        with tf.gfile.GFile(self.filename, 'rb') as f:
+        with tf.io.gfile.GFile(self.filename, 'rb') as f:
             self.graph_def.ParseFromString(f.read())
 
         tf.import_graph_def(self.graph_def, name='')
-        self.graph = tf.get_default_graph()
+        self.graph = tf.compat.v1.get_default_graph()
 
         # Retrieving 'network_input_size' from shape of 'input_node'
         input_tensor_shape = self.graph.get_tensor_by_name(
